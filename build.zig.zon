@@ -1,0 +1,28 @@
+.{
+    .name = .cuda,
+    .version = "0.0.1",
+    .fingerprint = 0x61C9D227D95CC309, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.15.0",
+    .dependencies = .{
+        .open_gpu_kernel_modules = .{
+            .url = "git+https://github.com/NVIDIA/open-gpu-kernel-modules#2b436058a616676ec888ef3814d1db6b2220f2eb",
+            .hash = "N-V-__8AAO0kdAfKhNuKIsIGKJZsZLnBr2V3Rc9Yk3jjgE7Z",
+        },
+        .tracy = .{
+            .url = "git+https://github.com/wolfpld/tracy.git?ref=v0.12.2#c556831ddc6fe26d2fce01c14c97205a9dad46d5",
+            .hash = "N-V-__8AANptPwE8EYOS5w6KRzVyfllpOBthYRcuuQvYhhxb",
+            .lazy = true,
+        },
+        .zlinter = .{
+            .url = "git+https://github.com/kurtwagner/zlinter?ref=master#e8f4d23a07c81af8dc2868d51299c3009806b04e",
+            .hash = "zlinter-0.0.1-OjQ08WdWCwCWCzd_YX8OZqgWKTarOM25SjwWxA-w01nX",
+        },
+    },
+    .paths = .{
+        "LICENSE-APACHE",
+        "LICENSE-MIT",
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
