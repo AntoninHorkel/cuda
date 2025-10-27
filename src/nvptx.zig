@@ -1,8 +1,12 @@
 const builtin = @import("builtin");
 
 comptime {
+    if (builtin.target.cpu.arch != .nvptx or builtin.target.cpu.arch != .nvptx64)
+        @compileError("NVPTX only.");
     if (builtin.os.tag != .cuda)
         @compileError("CUDA only.");
+
+    @compileError("TODO: Fix this first!!!");
 }
 
 // extern fn @"llvm.nvvm.barrier0"() void;
@@ -40,7 +44,6 @@ pub inline fn blockIdX() usize {
 pub inline fn blockDimX() usize {
     return @workGroupSize(0);
 }
-
 
 pub inline fn gridDimX() usize {
     const nctaid = asm volatile ("mov.u32 %[r], %nctaid.x;"

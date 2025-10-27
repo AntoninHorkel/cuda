@@ -8,7 +8,7 @@ const File = std.fs.File;
 const Fnv1a = std.hash.Fnv1a_64;
 const Reader = std.Io.Reader;
 
-const AbstractReader = union(enum) {
+pub const AbstractReader = union(enum) {
     file_reader: File.Reader,
     buffer_reader: struct {
         buffer: []const u8,
@@ -47,15 +47,16 @@ const NvInfoItem = struct {
     value: Value,
 
     const Format = enum(u8) {
-        EIFMT_NVAL = 0x01,
+        // EIFMT_ERROR = 0,
+        EIFMT_NVAL = 1,
         EIFMT_BVAL,
         EIFMT_HVAL,
         EIFMT_SVAL,
     };
 
     const Attribute = enum(u8) {
-        EIATTR_ERROR = 0x00,
-        EIATTR_PAD,
+        // EIATTR_ERROR = 0,
+        EIATTR_PAD = 1,
         EIATTR_IMAGE_SLOT,
         EIATTR_JUMPTABLE_RELOCS,
         EIATTR_CTAIDZ_USED,
@@ -65,20 +66,21 @@ const NvInfoItem = struct {
         EIATTR_TEXTURE_NORMALIZED,
         EIATTR_SAMPLER_INIT,
         EIATTR_PARAM_CBANK,
-        EIATTR_SMEM_PARAM_OFFSETS,
-        EIATTR_CBANK_PARAM_OFFSETS,
-        EIATTR_SYNC_STACK,
+        EIATTR_SMEM_PARAM_OFFSETS, // Deprecated by EIATTR_KPARAM_INFO
+        EIATTR_CBANK_PARAM_OFFSETS, // Deprecated by EIATTR_KPARAM_INFO
+        EIATTR_SYNC_STACK, // Deprecated by EIATTR_CRS_STACK_SIZE
         EIATTR_TEXID_SAMPID_MAP,
         EIATTR_EXTERNS,
         EIATTR_REQNTID,
         EIATTR_FRAME_SIZE,
         EIATTR_MIN_STACK_SIZE,
         EIATTR_SAMPLER_FORCE_UNNORMALIZED,
-        EIATTR_BINDLESS_IMAGE_OFFSETS,
+        EIATTR_BINDLESS_IMAGE_OFFSETS, // Deprecated by R_CUDA_TEX_HEADER_INDEX
         EIATTR_BINDLESS_TEXTURE_BANK,
         EIATTR_BINDLESS_SURFACE_BANK,
         EIATTR_KPARAM_INFO,
-        EIATTR_SMEM_PARAM_SIZE,
+        EIATTR_SMEM_PARAM_SIZE, // Deprecated by EIATTR_KPARAM_INFO
+        // From here idk
         EIATTR_CBANK_PARAM_SIZE,
         EIATTR_QUERY_NUMATTRIB,
         EIATTR_MAXREG_COUNT,
@@ -125,7 +127,7 @@ const NvInfoItem = struct {
 
     const Value = union(enum) {
         nval: u16,
-        bval: u16, // TODO: Or u8?
+        bval: u16, // TODO: Or u8? Investigte!!!
         hval: u16,
         sval: Sval,
     };
@@ -147,7 +149,10 @@ const NvInfoItem = struct {
             log_alignment: u8,
             space: u4,
             cbank: u5,
-            is_cbank: bool,
+            parameter_space: enum(u1) {
+                cbank,
+                smem,
+            },
             size: u14,
         };
     };
@@ -180,101 +185,124 @@ const NvInfoItem = struct {
     }
 };
 
-pub const Cubin = struct {
-    virtual_address: u32,
-    functions: []const Function,
+pub const Function = struct {
+    name: []const u8,
+    size: u64,
+    virtual_address: u64,
+    shared_memory: u32,
+    register_count: u32,
+    constants: []const Constant, // https://developer.nvidia.com/blog/cuda-12-1-supports-large-kernel-parameters
+    params: []const Param,
 
-    pub const Function = struct {
-        name: []const u8,
+    pub const Constant = struct {
+        number: u32,
+        address: u64,
         size: u64,
-        virtual_address: u64,
-        shared_memory: u32,
-        register_count: u32,
-        constants: []const Constant,
-        params: []const Param,
+    };
 
-        pub const Constant = struct {
-            number: u32,
-            address: u64,
-            size: u64,
-        };
+    pub const Param = struct {
+        index: u32,
+        offset: u16,
+        size: u16,
+    };
+};
 
-        pub const Param = struct {
-            index: u32,
-            offset: u16,
-            size: u16,
-        };
+const FunctionMap = struct {
+    allocator: Allocator,
+    entries: []Entry,
+    length: usize,
 
-        const Map = struct {
-            entries: []Entry,
-            length: usize,
+    const Entry = struct {
+        hash: u64,
+        key: []const u8,
+        function: MaybeFunction,
 
-            const Entry = struct {
-                hash: u64,
-                key: []const u8,
-                function: MaybeFunction,
-
-                const MaybeFunction = blk: {
-                    const function_fields = @typeInfo(Function).@"struct".fields;
-                    var fields: [function_fields.len]std.builtin.Type.StructField = undefined;
-                    for (function_fields, &fields) |function_field, *field|
-                        field.* = .{
-                            .name = function_field.name,
-                            .type = ?function_field.type,
-                            .default_value_ptr = function_field.default_value_ptr,
-                            .is_comptime = function_field.is_comptime,
-                            .alignment = @alignOf(?function_field.type),
-                        };
-                    break :blk @Type(.{ .@"struct" = .{
-                        .decls = &.{},
-                        .fields = &fields,
-                        .is_tuple = false,
-                        .layout = .auto,
-                    } });
+        const MaybeFunction = blk: {
+            const function_fields = @typeInfo(Function).@"struct".fields;
+            var fields: [function_fields.len]std.builtin.Type.StructField = undefined;
+            for (function_fields, &fields) |function_field, *field|
+                field.* = .{
+                    .name = function_field.name,
+                    .type = ?function_field.type,
+                    .default_value_ptr = function_field.default_value_ptr,
+                    .is_comptime = function_field.is_comptime,
+                    .alignment = @alignOf(?function_field.type),
                 };
-            };
-
-            pub fn init(allocator: Allocator, capacity: usize) Allocator.Error!@This() {
-                return .{ .entries = try allocator.alloc(Entry, capacity), .length = 0 };
-            }
-
-            pub fn deinit(self: *@This(), allocator: Allocator) void {
-                allocator.free(self.entries);
-            }
-
-            pub fn put(self: *@This(), key: []const u8, values: anytype) error{CapacityExceeded}!void {
-                if (self.length >= self.entries.len)
-                    return error.CapacityExceeded;
-                const hash = Fnv1a.hash(key);
-                const index = for (self.entries[0..self.length], 0..) |entry, index| {
-                    if (entry.hash == hash and mem.eql(u8, entry.key, key))
-                        break index;
-                } else blk: {
-                    self.entries[self.length].hash = hash;
-                    self.entries[self.length].key = key;
-                    self.length += 1;
-                    break :blk self.length - 1;
-                };
-                inline for (@typeInfo(@TypeOf(values)).@"struct".fields) |value_field|
-                    @field(self.entries[index], value_field.name) = @field(values, value_field.name);
-            }
-
-            pub fn collect(self: *@This(), allocator: Allocator) (Allocator.Error || error{Invalid})![]const Function {
-                const functions = try allocator.alloc(Function, self.length);
-                for (self.entries[0..self.length], functions) |entry, *function| {
-                    inline for (@typeInfo(Entry.MaybeFunction).@"struct".fields) |function_field| {
-                        const e = @field(entry.function, function_field.name) orelse return error.Invalid;
-                        switch (@typeInfo(@typeInfo(function_field.type).optional.child)) {
-                            .int => @field(function, function_field.name) = e,
-                            .pointer => @memcpy(@field(function, function_field.name), e),
-                            else => @compileError("TODO: Unhandled type"),
-                        }
-                    }
-                }
-                return functions;
-            }
+            break :blk @Type(.{ .@"struct" = .{
+                .decls = &.{},
+                .fields = &fields,
+                .is_tuple = false,
+                .layout = .auto,
+            } });
         };
     };
+
+    pub fn init(allocator: Allocator, capacity: usize) Allocator.Error!@This() {
+        return .{
+            .allocator = allocator,
+            .entries = try allocator.alloc(Entry, capacity),
+            .length = 0,
+        };
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.allocator.free(self.entries);
+    }
+
+    pub fn put(self: *@This(), key: []const u8, values: anytype) error{CapacityExceeded}!void {
+        if (self.length >= self.entries.len)
+            return error.CapacityExceeded;
+        const hash = Fnv1a.hash(key);
+        const index = for (self.entries[0..self.length], 0..) |entry, index| {
+            if (entry.hash == hash and mem.eql(u8, entry.key, key))
+                break index;
+        } else blk: {
+            self.entries[self.length] = mem.zeroInit(Entry, .{
+                .hash = hash,
+                .key = self.allocator.alloc(u8, key.len),
+            });
+            @memcpy(self.entries[self.length].key, key);
+            self.length += 1;
+            break :blk self.length - 1;
+        };
+        inline for (@typeInfo(@TypeOf(values)).@"struct".fields) |value_field| {
+            switch (@typeInfo(value_field.type)) {
+                
+            }
+            @field(self.entries[index].function, value_field.name) = @field(values, value_field.name);
+        }
+    }
+
+    pub fn get(self: *@This(), key: []const u8) error{FunctionIncomplete}!Function {
+        for (self.entries[0..self.length]) |entry| {
+            if 
+        }
+    }
+
+    // pub fn collect(self: *@This(), allocator: Allocator) (Allocator.Error || error{Invalid})![]const Function {
+    //     var functions = try allocator.alloc(Function, self.length);
+    //     _ = &functions;
+    //     for (self.entries[0..self.length], functions) |entry, *function| {
+    //         inline for (@typeInfo(Function).@"struct".fields) |function_field| {
+    //             const e = @field(entry.function, function_field.name) orelse return error.Invalid;
+    //             // const T = @typeInfo().optional.child;
+    //             switch (@typeInfo(function_field.type)) {
+    //                 .int => @field(function, function_field.name) = e,
+    //                 .pointer => {
+    //                     // @memcpy(@constCast(@field(function, function_field.name)), e),
+    //                     @field(function, function_field.name) = try allocator.alloc(@typeInfo(function_field.type).pointer.child, e.len);
+    //                 },
+    //                 else => @compileError("TODO: Unhandled type"),
+    //             }
+    //         }
+    //     }
+    //     return functions;
+    // }
+};
+
+pub const Cubin = struct {
+    virtual_address: u32,
+    function_map: FunctionMap,
 
     pub const ParseFileOptions = struct {
         mmap: bool = false,
@@ -381,8 +409,7 @@ pub const Cubin = struct {
         //     }
         // }
 
-        var function_map: Function.Map = try .init(allocator, section_headers.len);
-        defer function_map.deinit(allocator);
+        var function_map: FunctionMap = try .init(allocator, section_headers.len);
 
         for (section_headers) |section_header| switch (section_header.type) {
             elf.SHT_PROGBITS => {
@@ -433,13 +460,13 @@ pub const Cubin = struct {
 
         return .{
             .virtual_address = 0,
-            .functions = try function_map.collect(allocator),
+            .function_map = function_map,
         };
     }
 
-    pub fn deinit(self: *@This(), allocator: Allocator) void {
+    pub fn deinit(self: *@This()) void {
         // TODO: Free virtual_address
-        allocator.free(self.functions);
+        self.function_map.deinit();
     }
 };
 

@@ -62,10 +62,10 @@
             ]
             ++ lib.optionals allowUnfree [
               cudaPackages.cuda_cuobjdump
-              cudaPackages.cuda_nvcc
-              gcc
+              # cudaPackages.cuda_nvcc
               cudaPackages.cuda_nvdisasm
               cudaPackages.cudatoolkit
+              gcc
             ];
           NIX_ENFORCE_NO_NATIVE = 0;
         };

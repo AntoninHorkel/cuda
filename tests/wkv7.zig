@@ -2,6 +2,8 @@ const builtin = @import("builtin");
 const nvptx = @import("../src/nvptx.zig");
 
 comptime {
+    if (builtin.target.cpu.arch != .nvptx or builtin.target.cpu.arch != .nvptx64)
+        @compileError("NVPTX only.");
     if (builtin.os.tag != .cuda)
         @compileError("CUDA only.");
 }
@@ -13,19 +15,19 @@ export fn kernelForward(
     T: u32,
     C: u32,
     H: u32,
-    _r: *const addrspace(.global) Type,
-    _w: *const addrspace(.global) Type,
-    _k: *const addrspace(.global) Type,
-    _v: *const addrspace(.global) Type,
-    _a: *const addrspace(.global) Type,
-    _b: *const addrspace(.global) Type,
+    _r: *addrspace(.global) const Type,
+    _w: *addrspace(.global) const Type,
+    _k: *addrspace(.global) const Type,
+    _v: *addrspace(.global) const Type,
+    _a: *addrspace(.global) const Type,
+    _b: *addrspace(.global) const Type,
     _y: *addrspace(.global) Type,
 ) callconv(.nvptx_kernel) void {
     const e = nvptx.blockIdX() / H;
     const h = nvptx.blockIdX() % H;
     const i = nvptx.threadIdx();
 
-    var state: [N]f32 = .{0} ** N;
+    var state: [N]f32 = @splat(0);
     var r: [N]f32 = undefined;
     var k: [N]f32 = undefined;
     var w: [N]f32 = undefined;
