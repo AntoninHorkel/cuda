@@ -14,8 +14,8 @@
             .lazy = true,
         },
         .zlinter = .{
-            .url = "git+https://github.com/kurtwagner/zlinter?ref=master#e8f4d23a07c81af8dc2868d51299c3009806b04e",
-            .hash = "zlinter-0.0.1-OjQ08WdWCwCWCzd_YX8OZqgWKTarOM25SjwWxA-w01nX",
+            .url = "git+https://github.com/kurtwagner/zlinter?ref=master#0f4859da9b5f40c42038a6e676db191f4f9e0913",
+            .hash = "zlinter-0.0.1-OjQ08WdWCwDIull0qJMM3D8dmRT0nqE3qP6Y5RN6TI6t",
         },
     },
     .paths = .{

@@ -4,3 +4,5 @@ zig fetch --save=open_gpu_kernel_modules "git+https://github.com/NVIDIA/open-gpu
 zig fetch --save=tracy "git+https://github.com/wolfpld/tracy.git#v0.12.2"
 zig fetch --save "git+https://github.com/kurtwagner/zlinter#master" # Branch 0.15.x also exists.
 nix flake update
+cd test
+nix flake update

@@ -16,19 +16,15 @@ pub inline fn syncThreads() void {
 }
 
 pub inline fn threadIdX() usize {
-    return @workGroupId(0);
+    return @workItemId(0);
 }
 
 pub inline fn threadIdY() usize {
-    return @workGroupId(1);
+    return @workItemId(1);
 }
 
 pub inline fn threadIdZ() usize {
-    // const tid = asm volatile ("mov.u32 \t%[r], %tid.z;"
-    //     : [r] "=r" (-> u32),
-    // );
-    // return @intCast(tid);
-    return @workGroupId(2);
+    return @workItemId(2);
 }
 
 // TODO

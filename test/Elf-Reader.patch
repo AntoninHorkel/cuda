@@ -1,0 +1,100 @@
+diff --git a/Reader.xs b/Reader.xs
+index 23644f9..c332c32 100644
+--- a/Reader.xs
++++ b/Reader.xs
+@@ -390,10 +390,10 @@ IElf *extract(SV *sv)
+ 
+ const ELFIO::section *find_section(IElf *e, unsigned long addr)
+ {
+-  for ( auto *s: e->rdr->sections ) {
++  for ( auto& s: e->rdr->sections ) {
+     if ( s->get_type() != ELFIO::SHT_PROGBITS ) continue;
+     if ( addr >= s->get_address() && addr < s->get_address() + s->get_size() )
+-      return s;
++      return s.get();
+   }
+   return nullptr;
+ }
+@@ -410,11 +410,11 @@ const ELFIO::section *get_nonzero(IElf *e, int s_idx) {
+ // unlike find_section try to search any section including NOBITS (e.g. .bss)
+ const ELFIO::section *find_any(IElf *e, unsigned long addr)
+ {
+-  for ( auto *s: e->rdr->sections ) {
++  for ( auto& s: e->rdr->sections ) {
+     auto a = s->get_address();
+     if ( !a ) continue;
+     if ( addr >= a && addr < a + s->get_size() )
+-      return s;
++      return s.get();
+   }
+   return nullptr;
+ }
+@@ -623,7 +623,7 @@ patch_sec_flag(SV *self, IV section_idx, UV flag)
+    auto patch_flag = [&,flag](auto &p) -> bool {
+     if ( e->needswap ) {
+       const auto& convertor = e->rdr->get_convertor();
+-      p.sh_flags = convertor(flag);
++      p.sh_flags = (*convertor)(flag);
+     } else
+       p.sh_flags = flag;
+     return 1;
+@@ -644,7 +644,7 @@ patch_seg_flag(SV *self, IV section_idx, UV flag)
+    auto patch_flag = [&,flag](auto &p) -> bool {
+     if ( e->needswap ) {
+       const auto& convertor = e->rdr->get_convertor();
+-      p.p_flags = convertor(flag);
++      p.p_flags = (*convertor)(flag);
+     } else
+       p.p_flags = flag;
+     return 1;
+@@ -666,7 +666,7 @@ patch_sec_type(SV *self, IV section_idx, UV flag)
+    auto patch_type = [&,flag](auto &p) -> bool {
+     if ( e->needswap ) {
+       const auto& convertor = e->rdr->get_convertor();
+-      p.sh_type = convertor(flag);
++      p.sh_type = (*convertor)(flag);
+     } else
+       p.sh_type = flag;
+     return 1;
+@@ -687,7 +687,7 @@ patch_seg_type(SV *self, IV section_idx, UV flag)
+    auto patch_type = [&,flag](auto &p) -> bool {
+     if ( e->needswap ) {
+       const auto& convertor = e->rdr->get_convertor();
+-      p.p_type = convertor(flag);
++      p.p_type = (*convertor)(flag);
+     } else
+       p.p_type = flag;
+     return 1;
+@@ -962,9 +962,9 @@ modinfo(SV *arg)
+   }
+   // try to find section .modinfo
+   // see details https://eng.libretexts.org/Under_Construction/Purgatory/Computer_Science_from_the_Bottom_Up_(Wienand)/0.35%3A_Extending_ELF_concepts
+-  for ( auto *s: e->rdr->sections ) {
++  for ( auto& s: e->rdr->sections ) {
+     if ( ".modinfo" == s->get_name() ) {
+-      vs = s;
++      vs = s.get();
+       break;
+     }
+   }
+@@ -993,9 +993,9 @@ versyms(SV *arg)
+   }
+   // try to find section with type SHT_GNU_verneed
+   // see details https://refspecs.linuxbase.org/LSB_3.1.1/LSB-Core-generic/LSB-Core-generic/symversion.html
+-  for ( auto *s: e->rdr->sections ) {
++  for ( auto& s: e->rdr->sections ) {
+     if ( s->get_type() == ELFIO::SHT_GNU_verneed ) {
+-      vs = s;
++      vs = s.get();
+       break;
+     }
+   }
+@@ -1574,7 +1574,7 @@ FETCH(self, key)
+     ELFIO::Elf_Word type = 0,
+       desclen = 0;
+     std::string name;
+-    void*       desc = nullptr;
++    char*       desc = nullptr;
+     if ( !s->nsa.get_note( key, type, name, desc, desclen) )
+      ST(0) = &PL_sv_undef;
+     else {

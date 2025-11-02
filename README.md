@@ -5,13 +5,17 @@
 - [YouTube: George Hotz | Programming | aside: nvidia open source kernel driver | geohot/cuda_ioctl_sniffer](https://youtu.be/oVUK1ychsb4?si=FGAL0LeAFF2tlBkj)
 - [YouTube: George Hotz | Programming | aside: a look into NVIDIA open source drivers | part2 cuda_ioctl_sniffer](https://youtu.be/CE_72X3Wh_U?si=slEtN9drQIIeqpHg)
 
+- <Dread onion url>/post/b2a0fc81f18dbd6f2068
+
 ## Cubin
 
+- [NVidia sass disassembler](https://github.com/redplait/denvdis) ([DeepWiki](https://deepwiki.com/redplait/denvdis) is helpfull)
 - [Parser in LibreCuda](https://github.com/mikex86/LibreCuda/blob/7470f81a5c910c3b2c6e0088fb07d55338b5041d/driverapi/src/librecuda.cpp#L944-L1379)
 - [Rust cudaparsers](https://github.com/VivekPanyam/cudaparsers)
 - [Decoding CUDA Binary - File Format](https://zenodo.org/record/2339027/files/decoding-cuda-binary-file-format.pdf)
-- [idk anymore](https://zhuanlan.zhihu.com/p/1961519233591674250)
-- [idk anymore](https://zhuanlan.zhihu.com/p/13790390704)
+- [zhihu](https://zhuanlan.zhihu.com/p/1961519233591674250)
+- [zhihu](https://zhuanlan.zhihu.com/p/13790390704)
+- [fatbin zhihu](https://zhuanlan.zhihu.com/p/29424681490)
 
 ## Kernels
 

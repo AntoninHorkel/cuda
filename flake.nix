@@ -29,13 +29,11 @@
       tracy-upgrade,
       ...
     }:
-    (with flake-utils.lib; eachSystem nixpkgs.lib.platforms.linux) (
+    (flake-utils.lib.eachSystem nixpkgs.lib.platforms.linux) (
       system:
       let
-        allowUnfree = true;
         pkgs = import nixpkgs {
           inherit system;
-          config.allowUnfree = allowUnfree;
           overlays = [
             (final: prev: {
               tracy = (import tracy-upgrade { inherit system; }).tracy;
@@ -47,26 +45,17 @@
       in
       {
         devShells.default = pkgs.mkShellNoCC {
-          packages =
-            with pkgs;
-            [
-              lldb
-              nixfmt-tree
-              poop
-              strace
-              tinymist
-              tracy
-              typst
-              zig
-              zls
-            ]
-            ++ lib.optionals allowUnfree [
-              cudaPackages.cuda_cuobjdump
-              # cudaPackages.cuda_nvcc
-              cudaPackages.cuda_nvdisasm
-              cudaPackages.cudatoolkit
-              gcc
-            ];
+          packages = with pkgs; [
+            lldb
+            nixfmt-tree
+            poop
+            strace
+            tinymist
+            tracy
+            typst
+            zig
+            zls
+          ];
           NIX_ENFORCE_NO_NATIVE = 0;
         };
         formatter = pkgs.nixfmt-tree;
